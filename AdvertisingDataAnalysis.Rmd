@@ -1,0 +1,251 @@
+---
+title: "Analysis of Advertising Data and Sales Performance"
+author: "Tanaya Sachin Jadhav"
+output:
+  pdf_document:
+    latex_engine: xelatex
+    number_sections: true
+fontsize: 12pt
+mainfont: "Times New Roman"
+---
+
+# Introduction
+This project investigates the relationship between advertising expenditures across different media channels and sales performance using multiple linear regression models. The dataset consists of 200 companies and their monthly advertising expenditures on:
+1. New Media,
+2. TV & Radio,
+3. Newspaper,
+The primary goal is to identify significant predictors of sales, refine the model, and provide actionable recommendations for optimizing advertising strategies. Advertising plays a critical role in shaping business outcomes by influencing consumer behavior and driving sales. However, in order to maximise results, firms must wisely deploy their resources given their limited budgets and variety of advertising outlets. Using data from 200 businesses, this research seeks to examine the relationship between advertising spending across three major channels—new media, TV & radio, and newspapers—and its effect on sales success. The study aims to determine the most important sales variables and assess the efficacy of various channels by using exploratory data analysis and multiple linear regression modelling. The results will offer practical advice to assist companies maximise their advertising campaigns and boost marketing effectiveness.
+
+```{r}
+#Ensure residual data does not impact analysis.
+rm(list = ls())  
+```
+
+```{r}
+# Load the dataset to analyze.
+data <- read.csv("~/Downloads/Advertising.csv", header = TRUE)
+```
+
+# Data Analysis
+
+## Dataset Description
+The dataset contains the following variables:
+1. New Media: Advertising expenditure on new media (in thousands of pounds).
+2. TV & Radio: Advertising expenditure on TV and radio (in thousands of pounds).
+3. Newspaper: Advertising expenditure on newspapers (in thousands of pounds).
+4. Sales: Monthly sales revenue (in thousands of pounds).
+
+The following analysis explores the distributions of these variables and checks for data quality.
+
+```{r}
+# Check variable types and previews the data
+str(data)
+head(data)
+```
+
+```{r}
+# Rename columns for better clarity in the analysis
+colnames(data) <- c("New_media", "TV_Radio", "Newspaper", "Sales")
+```
+
+## Summary Statistics
+A summary of the dataset is provided to highlight central tendencies and variability.
+```{r}
+summary(data)
+```
+## Empirical Distributions
+Visualizations of variable distributions help identify patterns, skewness, or outliers.
+```{r}
+# Load ggplot2 library for data visualization
+library(ggplot2)
+
+# Histograms to visualize distributions for all variables
+vars <- c("New_media", "TV_Radio", "Newspaper", "Sales")
+for (var in vars) {
+    print(
+        ggplot(data, aes(x = .data[[var]])) +  # Use .data[[var]] to reference variable names
+        geom_histogram(binwidth = 10, fill = "blue", color = "white") +
+        labs(title = paste("Distribution of", var), x = var, y = "Frequency")
+    )
+}
+```
+#Observation: 
+1. Distribution of New Media Expenditure: The histogram is nearly uniform with no strong skew and obvious mode. The expenditure levels distribute across the range with some variations in frequency.
+2. Distribution of TV & Radio Expenditure: There exists a bimodal shape distribution with two peaks: first, at lower expenditure ranges or around 10–20; and the second, a greater expenditure range, around 30–40. At mid-range expenditures, obvious drop in frequency is observed.
+3. Distribution of Newspaper Expenditure: The histogram is right-skewed, meaning most firms incur relatively low expenditures on newspaper advertising. A long tail stretches toward higher expenditures but with frequencies that are quite low in that range.
+4. Distribution of Sales: The histogram indicates a roughly bell-shaped distribution although the histogram leans right (positively skewed). Most of the observations show sales values between 150 and 250, while fewer occur at both lower and higher ends.
+
+#Interpretation:
+1. Distribution of New Media Expenditure: The steady trend shows that companies have been different in their new media expenditures. There is no prominent trend of expenditure. The frequency peaks and dips could also be indicating that companies often prefer certain spending ranges or have budgetary limits. There is no indication of extreme outliers, so new media expenditures seem pretty balanced.
+2. Distribution of TV & Radio Expenditure: The bimodal distribution pattern indicates that there must be two types of companies. One group spends relatively fewer amounts on TV and Radio advertisements, and the other group spends significantly more. Low frequency in the mid-range reflect a gap in advertisement strategies or budgeting.
+3. Distribution of Newspaper Expenditure: The negative skew suggests that overall, most firms are coming off of high levels of investment in newspaper advertisement spending and are hence probably switching to new and digital media. It could be some conservative traditional businesses or a few industries that still mostly advertise in print media.
+4. Distribution of Sales: The near-normal distribution further suggests that the majority of companies have been performing middle-of-the-pack sales while fewer companies perform extremely low or high sales. The slight right skew can be considered as an indicator that perhaps a few firms are obtaining significantly higher sales figures, thus perhaps due to better marketing strategies or large market share.
+
+#Conclusion: 
+1. Distribution of New Media Expenditure: The relatively uniform distribution of New Media expenditure suggests that companies are spreading their budget across a wide range of spending levels. This balanced pattern gives scope for small and large investments, based on the advertising goals of the company and the available resources. Companies need to analyze whether the present New Media spending is effective or whether more investment in this channel would fetch higher returns.
+2. Distribution of TV & Radio Expenditure: Bimodal expenditure on TV & Radio reveals that most businesses adapt either low budget or high budget spending. Companies with low budgets may use targeted television or radio campaigns to have the maximum impact within their constraints. High-budget companies should ensure that they are optimizing their investments by targeting the right demographics and maximize reach. Further analysis could determine whether such different strategies are associated with sales performance differences.
+3. Distribution of Newspaper Expenditure: The right-skewed distribution implies that most of the firms spend relatively very low amounts on newspaper advertisement, with only a few firms investing heavily in the channel. This trend seems to indicate a decline in reliance on print media, most likely due to the growing efficiency of digital advertising. Companies currently investing significantly in the newspaper should realign their budget and invest in the channels that bring more returns, including New Media or TV & Radio.
+4. Distribution of Sales: The roughly bell-shaped distribution of Sales suggests that most companies exhibit moderately good sales performance, with relatively few companies achieving very low or very high sales. This might indicate the effectiveness of advertisement expenditure but also indicates deviation in the product line or market penetration or external reasons such as competition. Companies need to review the overall marketing strategy and its impact on sales. Companies that sell less may review their advertising mix. Companies with good sales performances may fine-tune their strategies further.
+
+```{r}
+# Scatter plots to explore relationships between predictors and Sales
+predictors <- c("New_media", "TV_Radio", "Newspaper")  # Exclude "Sales" as it's the target
+for (var in predictors) {
+    print(
+        ggplot(data, aes(x = .data[[var]], y = .data[["Sales"]])) +  # Use .data[[ ]] for variables
+        geom_point() +
+        labs(title = paste(var, "vs Sales"), x = var, y = "Sales")
+    )
+}
+```
+
+```{r}
+# Compute pairwise correlations among variables.
+correlation_matrix <- cor(data)
+print(correlation_matrix)
+```
+## Model Fitting
+The objective of this section is to quantify the relationship between advertising expenditures and sales performance using multiple linear regression models. Initially, a full model including all predictors (New_media, TV_Radio, and Newspaper) is fitted to examine their impact on sales. Subsequently, a simplified model is developed by excluding insignificant predictors based on their statistical significance. The refined model ensures better interpretability and avoids overfitting.
+To validate the models, diagnostic checks are performed to evaluate assumptions such as:
+- Linearity of relationships.
+- Normality of residuals.
+- Homoscedasticity (constant variance of residuals).
+- Multicollinearity among predictors.
+Both models are compared using ANOVA to determine whether the simplified model performs as well as the full model. Finally, the results are summarized, and actionable recommendations are provided based on significant predictors.
+
+#Full Model Fitting 
+The full multiple linear regression model includes all predictors (New_media, TV_Radio, and Newspaper) and explains 89.56% of the variability in Sales (Adjusted R² = 0.8956). Significant predictors are New_media (Coefficient = 0.68647, p-value < 2e-16) and TV_Radio (Coefficient = 2.82795, p-value < 2e-16), indicating that increases in these expenditures are associated with corresponding increases in Sales. Newspaper (Coefficient = -0.01556, p-value = 0.86) is insignificant and does not meaningfully impact Sales.
+```{r}
+# Fit the regression model with all predictors present.
+model <- lm(Sales ~ New_media + TV_Radio + Newspaper, data = data)
+
+# Summarize the model
+summary(model)
+```
+```{r}
+# Load the car library to calculate Variance Inflation Factor (VIF)
+library(car)
+vif(model)
+```
+
+#Simplified Model Fitting
+Based on the results of the full model, insignificant predictors (p-value > 0.05) are excluded. The simplified model retains only the significant predictors, ensuring interpretability and efficiency.
+```{r}
+# Fit a simplified model excluding insignificant predictors based on p-values, the Newspaper variable is excluded
+refined_model <- lm(Sales ~ New_media + TV_Radio, data = data)
+summary(refined_model)
+```
+
+#Model Diagnostics
+The residual diagnostics for the full model assess the validity of linear regression assumptions. Plots are used to check for:
+- Linearity: Residuals vs. Fitted Values plot.
+- Normality: Histogram and Q-Q plot of residuals.
+- Homoscedasticity: Variance of residuals remains constant across fitted values.
+```{r}
+# Diagnostic plots for the refined model
+plot(refined_model$fitted.values, refined_model$residuals,
+     main = "Residuals vs Fitted Values (Simplified Model)", 
+     xlab = "Fitted Values", 
+     ylab = "Residuals")
+hist(refined_model$residuals, main = "Histogram of Residuals (Simplified Model)", 
+     xlab = "Residuals")
+qqnorm(refined_model$residuals)
+qqline(refined_model$residuals, col = "orange")
+```
+#Simplified Model Diagnostics
+The same diagnostic checks are repeated for the simplified model to ensure its validity and reliability.
+```{r} 
+plot(model$fitted.values, model$residuals,
+     main = "Residuals vs Fitted Values", 
+     xlab = "Fitted Values", ylab = "Residuals")
+hist(model$residuals, main = "Residuals Histogram", xlab = "Residuals")
+qqnorm(model$residuals)
+qqline(model$residuals, col = "purple")
+```
+```{r}
+# Density plots for each variable
+ggplot(data, aes(x = New_media)) +
+  geom_density(fill = "blue", alpha = 0.5) +
+  labs(title = "Density Plot: New Media", x = "New Media")
+
+ggplot(data, aes(x = TV_Radio)) +
+  geom_density(fill = "red", alpha = 0.5) +
+  labs(title = "Density Plot: TV & Radio", x = "TV & Radio")
+```
+
+## Results
+The results from the regression models highlight the following:
+- The full model includes all predictors and achieves an Adjusted R² of X.
+- The simplified model excludes `Newspaper` and achieves an Adjusted R² of Y, demonstrating that `Newspaper` has an insignificant effect on sales.
+Below are the summaries of the models and diagnostic results.
+
+```{r}
+# Fit the full model with all predictors
+full_model <- lm(Sales ~ New_media + TV_Radio + Newspaper, data = data)
+
+# Display the summary of the full model
+summary(full_model)
+```
+### Full Model Results
+The full multiple linear regression model includes all predictors (New_media, TV_Radio, and Newspaper). The results are as follows:
+1. Adjusted R²: 0.8956, indicating that 89.56% of the variability in Sales is explained by the predictors.
+2. Significant Predictors:
+- New_media (Coefficient = 0.68647, p-value < 2e-16): A unit increase in New_media expenditure is associated with an average increase of 0.68647 units in Sales.
+- TV_Radio (Coefficient = 2.82795, p-value < 2e-16): A unit increase in TV_Radio expenditure is associated with an average increase of 2.82795 units in Sales.
+3. Insignificant Predictor:
+- Newspaper (Coefficient = -0.01556, p-value = 0.86): This variable does not significantly impact Sales and can be excluded from the model.
+
+```{r}
+# Fit a simplified model excluding insignificant predictors
+simplified_model <- lm(Sales ~ New_media + TV_Radio, data = data)
+
+# Display the summary of the simplified model
+summary(simplified_model)
+```
+
+#Model Comparison
+An ANOVA test is conducted to compare the performance of the full and simplified models. This determines whether the simpler model is sufficient for explaining the data.
+```{r}
+# Compare full and simplified models using ANOVA
+anova(full_model, simplified_model)
+```
+
+```{r}
+# Residuals vs. Fitted plot
+par(mfrow = c(1, 1))
+plot(simplified_model$fitted.values, residuals(simplified_model), 
+     main = "Residuals vs Fitted", 
+     xlab = "Fitted Values", 
+     ylab = "Residuals")
+abline(h = 0, col = "red", lty = 2)
+hist(residuals(simplified_model), 
+     breaks = 15, 
+     main = "Histogram of Residuals", 
+     xlab = "Residuals")
+qqnorm(residuals(simplified_model))
+qqline(residuals(simplified_model), col = "red")
+```
+
+## Appendix
+### Additional Visualizations
+Below are supplementary plots to support the main analysis.
+```{r}
+# Boxplots for each variable
+par(mfrow = c(2, 2))
+boxplot(data$New_media, main = "Boxplot: New Media", col = "lightblue")
+boxplot(data$TV_Radio, main = "Boxplot: TV & Radio", col = "pink")
+boxplot(data$Newspaper, main = "Boxplot: Newspaper", col = "yellow")
+boxplot(data$Sales, main = "Boxplot: Sales", col = "lightgreen")
+```
+
+## Conclusions
+
+### Key Findings:
+1. Significant Predictors:
+- `New_media` and `TV_Radio` have a significant positive impact on sales.
+- Their coefficients indicate that increases in these advertising channels are strongly associated with increased sales performance.
+2. Insignificant Predictor:
+- 'Newspapers' do not really affect the sales since the p-value corresponding it (-0.86) is greater than p-threshold. Thus, it is so insignificant to affect sales in this data set.
+
+### Summary:
+The complete model captures 89.56% of the sales variation (Adjusted R2=0.8956). Deleting the irrelevant predictor (Newspaper) will still offer a much simpler model, while retaining its predictive accuracy.
